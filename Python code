@@ -1,0 +1,48 @@
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+
+# Initialize the Flask app and database
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///work_orders.db'  # SQLite database
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Disable modification tracking
+db = SQLAlchemy(app)
+
+# Create the WorkOrder model
+class WorkOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(50), default="Pending")
+    date_created = db.Column(db.DateTime, default=db.func.now())
+
+# Create the database
+with app.app_context():
+    db.create_all()
+
+# Route: View all work orders
+@app.route("/")
+def index():
+    work_orders = WorkOrder.query.all()  # Retrieve all work orders
+    return render_template("index.html", work_orders=work_orders)
+
+# Route: Add a new work order
+@app.route("/add", methods=["POST", "GET"])
+def add_work_order():
+    if request.method == "POST":
+        description = request.form["description"]
+        new_work_order = WorkOrder(description=description)
+        db.session.add(new_work_order)
+        db.session.commit()
+        return redirect(url_for("index"))
+    return render_template("add.html")
+
+# Route: Delete a work order
+@app.route("/delete/<int:id>", methods=["POST", "GET"])
+def delete_work_order(id):
+    work_order = WorkOrder.query.get_or_404(id)
+    db.session.delete(work_order)
+    db.session.commit()
+    return redirect(url_for("index"))
+
+# Start the Flask app
+if __name__ == "__main__":
+    app.run(debug=True)
